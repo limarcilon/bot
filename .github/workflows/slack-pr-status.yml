@@ -11,15 +11,15 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v3
 
-      - name: Send notification to Slack
+      - name: Send notification to Slack (or Add Reaction)
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
           ACTION=${{ github.event.action }}
           TITLE="${{ github.event.pull_request.title }}"
           URL="${{ github.event.pull_request.html_url }}"
           ACTOR="${{ github.actor }}"
-          
+
           # Define a reaction emoji based on the action
           if [ "$ACTION" == "opened" ]; then
             EMOJI="eyes" # Reaction when PR is opened
@@ -44,7 +44,7 @@ jobs:
 
           # If the PR is opened, send a new message and save its timestamp
           if [ "$ACTION" == "opened" ]; then
-            RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $SLACK_WEBHOOK_URL" \
+            RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               -H 'Content-type: application/json' \
               --data '{
                 "channel": "#bot",
@@ -55,7 +55,7 @@ jobs:
           # Otherwise, add a reaction to the original message
           else
             if [ ! -z "$TIMESTAMP" ]; then
-              curl -s -X POST -H "Authorization: Bearer $SLACK_WEBHOOK_URL" \
+              curl -s -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
                 -H 'Content-type: application/json' \
                 --data '{
                   "channel": "#bot",
