@@ -12,32 +12,34 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Send notification to Slack
+        id: slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
           if [ "${{ github.event.action }}" == "opened" ]; then
             STATUS="opened"
             MESSAGE="Pull Request opened by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
-          elif [ "${{ github.event.action }}" == "closed" ]; then
-            STATUS="closed"
-            EMOJI=":white_check_mark:"
-            MESSAGE="Pull Request status changed to closed ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
-          elif [ "${{ github.event.action }}" == "reopened" ]; then
-            STATUS="reopened"
-            EMOJI=":recycle:"
-            MESSAGE="Pull Request status changed to reopened ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
-          elif [ "${{ github.event.action }}" == "edited" ]; then
-            STATUS="edited"
-            EMOJI=":pencil2:"
-            MESSAGE="Pull Request status changed to edited ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
-          elif [ "${{ github.event.action }}" == "synchronize" ]; then
-            STATUS="synchronized"
-            EMOJI=":arrows_counterclockwise:"
-            MESSAGE="Pull Request status changed to synchronized ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
-          fi
-
-          if [ -n "$MESSAGE" ]; then
-            curl -X POST -H 'Content-type: application/json' --data '{
+            RESPONSE=$(curl -X POST -H 'Content-type: application/json' --data '{
               "text": "'"$MESSAGE"'"
-            }' $SLACK_WEBHOOK_URL
+            }' $SLACK_WEBHOOK_URL)
+            TS=$(echo $RESPONSE | jq -r '.ts')
+            CHANNEL=$(echo $RESPONSE | jq -r '.channel')
+            echo "::set-output name=ts::$TS"
+            echo "::set-output name=channel::$CHANNEL"
+          else
+            if [ "${{ github.event.action }}" == "closed" ]; then
+              EMOJI="white_check_mark"
+            elif [ "${{ github.event.action }}" == "reopened" ]; then
+              EMOJI="recycle"
+            elif [ "${{ github.event.action }}" == "edited" ]; then
+              EMOJI="pencil2"
+            elif [ "${{ github.event.action }}" == "synchronize" ]; then
+              EMOJI="arrows_counterclockwise"
+            fi
+            curl -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H 'Content-type: application/json' --data '{
+              "name": "'"$EMOJI"'",
+              "channel": "'"${{ steps.slack.outputs.channel }}"'",
+              "timestamp": "'"${{ steps.slack.outputs.ts }}"'"
+            }' https://slack.com/api/reactions.add
           fi
