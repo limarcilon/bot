@@ -17,27 +17,16 @@ jobs:
         run: |
           if [ "${{ github.event.action }}" == "opened" ]; then
             STATUS="opened"
-            MESSAGE="Pull Request opened by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
           elif [ "${{ github.event.action }}" == "closed" ]; then
             STATUS="closed"
-            EMOJI=":white_check_mark:"
-            MESSAGE="Pull Request status changed to closed ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
           elif [ "${{ github.event.action }}" == "reopened" ]; then
             STATUS="reopened"
-            EMOJI=":recycle:"
-            MESSAGE="Pull Request status changed to reopened ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
           elif [ "${{ github.event.action }}" == "edited" ]; then
             STATUS="edited"
-            EMOJI=":pencil2:"
-            MESSAGE="Pull Request status changed to edited ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
           elif [ "${{ github.event.action }}" == "synchronize" ]; then
             STATUS="synchronized"
-            EMOJI=":arrows_counterclockwise:"
-            MESSAGE="Pull Request status changed to synchronized ${EMOJI} by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
           fi
 
-          if [ -n "$MESSAGE" ]; then
-            curl -X POST -H 'Content-type: application/json' --data '{
-              "text": "'"$MESSAGE"'"
-            }' $SLACK_WEBHOOK_URL
-          fi
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "Pull Request '${STATUS}' by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
+          }' $SLACK_WEBHOOK_URL
