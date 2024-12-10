@@ -1,0 +1,32 @@
+name: Notify Slack on Pull Request Events
+
+on:
+  pull_request:
+    types: [opened, closed, edited, reopened, synchronize]
+
+jobs:
+  slack-notification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v3
+
+      - name: Send notification to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event.action }}" == "opened" ]; then
+            STATUS="opened"
+          elif [ "${{ github.event.action }}" == "closed" ]; then
+            STATUS="closed"
+          elif [ "${{ github.event.action }}" == "reopened" ]; then
+            STATUS="reopened"
+          elif [ "${{ github.event.action }}" == "edited" ]; then
+            STATUS="edited"
+          elif [ "${{ github.event.action }}" == "synchronize" ]; then
+            STATUS="synchronized"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "Pull Request '${STATUS}' by '${{ github.actor }}': '${{ github.event.pull_request.title }}' \nURL: ${{ github.event.pull_request.html_url}}"
+          }' $SLACK_WEBHOOK_URL
