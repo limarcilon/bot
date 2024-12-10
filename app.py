@@ -37,7 +37,7 @@ def slack_events():
                     timestamp=timestamp
                 )
             except SlackApiError as e:
-                print(f"Error adding reaction: {e.response['error']}")
+                print(f"Help - Error adding reaction: {e.response['error']}")
 
         # Outros eventos podem ser processados da mesma maneira
     return jsonify({"status": "ok"})
