@@ -12,21 +12,40 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Send notification to Slack
+        if: github.event.action == 'opened'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          if [ "${{ github.event.action }}" == "opened" ]; then
-            STATUS="opened"
-          elif [ "${{ github.event.action }}" == "closed" ]; then
-            STATUS="closed"
+          response=$(curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} (opened)"
+          }' $SLACK_WEBHOOK_URL)
+          echo "response=$response" >> $GITHUB_ENV
+
+      - name: Save message timestamp
+        if: github.event.action == 'opened'
+        run: |
+          timestamp=$(echo $response | jq -r '.ts')
+          echo "SLACK_MESSAGE_TIMESTAMP=$timestamp" >> $GITHUB_ENV
+
+      - name: Add reaction to Slack message
+        if: github.event.action != 'opened'
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: 'bot'
+          SLACK_MESSAGE_TIMESTAMP: ${{ env.SLACK_MESSAGE_TIMESTAMP }}
+        run: |
+          if [ "${{ github.event.action }}" == "closed" ]; then
+            REACTION="white_check_mark"
           elif [ "${{ github.event.action }}" == "reopened" ]; then
-            STATUS="reopened"
+            REACTION="recycle"
           elif [ "${{ github.event.action }}" == "edited" ]; then
-            STATUS="edited"
+            REACTION="pencil2"
           elif [ "${{ github.event.action }}" == "synchronize" ]; then
-            STATUS="synchronized"
+            REACTION="arrows_counterclockwise"
           fi
 
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} ('${STATUS}')"
-          }' $SLACK_WEBHOOK_URL
+          curl -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-type: application/json" --data '{
+            "channel": "'$SLACK_CHANNEL'",
+            "name": "'$REACTION'",
+            "timestamp": "'$SLACK_MESSAGE_TIMESTAMP'"
+          }' https://slack.com/api/reactions.add
