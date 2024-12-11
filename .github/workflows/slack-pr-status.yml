@@ -28,5 +28,5 @@ jobs:
           fi
 
           curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} (${STATUS})"
+            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} - (${{STATUS}})"
           }' $SLACK_WEBHOOK_URL
