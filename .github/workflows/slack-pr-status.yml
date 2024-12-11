@@ -11,55 +11,36 @@ jobs:
       - name: Check out the code
         uses: actions/checkout@v3
 
-      - name: Send notification to Slack
+      - name: Send notification to Slack and add reaction
         if: github.event.action == 'opened'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
           response=$(curl -s -o response.json -w "%{http_code}" -X POST -H 'Content-type: application/json' --data '{
-            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} (opened)"
+            "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }}"
           }' $SLACK_WEBHOOK_URL)
           if [ "$response" -ne 200 ]; then
             echo "Error sending notification to Slack"
             cat response.json
             exit 1
           fi
-          echo "response=$(cat response.json)" >> $GITHUB_ENV
-
-      - name: Save message timestamp
-        if: github.event.action == 'opened'
-        run: |
-          timestamp=$(echo $response | jq -r '.ts')
+          response_content=$(cat response.json)
+          timestamp=$(echo $response_content | jq -r '.ts')
           if [ -z "$timestamp" ]; then
             echo "Error: No timestamp found in Slack response"
             exit 1
           fi
           echo "SLACK_MESSAGE_TIMESTAMP=$timestamp" >> $GITHUB_ENV
 
-      - name: Add reaction to Slack message
-        if: github.event.action != 'opened'
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL: 'bot'
-          SLACK_MESSAGE_TIMESTAMP: ${{ env.SLACK_MESSAGE_TIMESTAMP }}
-        run: |
-          if [ "${{ github.event.action }}" == "closed" ]; then
-            REACTION="white_check_mark"
-          elif [ "${{ github.event.action }}" == "reopened" ]; then
-            REACTION="recycle"
-          elif [ "${{ github.event.action }}" == "edited" ]; then
-            REACTION="pencil2"
-          elif [ "${{ github.event.action }}" == "synchronize" ]; then
-            REACTION="arrows_counterclockwise"
-          fi
-
-          response=$(curl -s -o response.json -w "%{http_code}" -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-type: application/json" --data '{
-            "channel": "'$SLACK_CHANNEL'",
+          REACTION="white_check_mark"
+          reaction_response=$(curl -s -o reaction_response.json -w "%{http_code}" -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-type: application/json" --data '{
+            "channel": "your-slack-channel",
             "name": "'$REACTION'",
-            "timestamp": "'$SLACK_MESSAGE_TIMESTAMP'"
+            "timestamp": "'$timestamp'"
           }' https://slack.com/api/reactions.add)
-          if [ "$response" -ne 200 ]; then
+          if [ "$reaction_response" -ne 200 ]; then
             echo "Error adding reaction to Slack message"
-            cat response.json
+            cat reaction_response.json
             exit 1
           fi
