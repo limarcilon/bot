@@ -16,15 +16,24 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          response=$(curl -X POST -H 'Content-type: application/json' --data '{
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST -H 'Content-type: application/json' --data '{
             "text": "[${{ github.actor }}]: ${{ github.event.pull_request.html_url}} - ${{ github.event.pull_request.title }} (opened)"
           }' $SLACK_WEBHOOK_URL)
-          echo "response=$response" >> $GITHUB_ENV
+          if [ "$response" -ne 200 ]; then
+            echo "Error sending notification to Slack"
+            cat response.json
+            exit 1
+          fi
+          echo "response=$(cat response.json)" >> $GITHUB_ENV
 
       - name: Save message timestamp
         if: github.event.action == 'opened'
         run: |
           timestamp=$(echo $response | jq -r '.ts')
+          if [ -z "$timestamp" ]; then
+            echo "Error: No timestamp found in Slack response"
+            exit 1
+          fi
           echo "SLACK_MESSAGE_TIMESTAMP=$timestamp" >> $GITHUB_ENV
 
       - name: Add reaction to Slack message
@@ -44,8 +53,13 @@ jobs:
             REACTION="arrows_counterclockwise"
           fi
 
-          curl -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-type: application/json" --data '{
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-type: application/json" --data '{
             "channel": "'$SLACK_CHANNEL'",
             "name": "'$REACTION'",
             "timestamp": "'$SLACK_MESSAGE_TIMESTAMP'"
-          }' https://slack.com/api/reactions.add
+          }' https://slack.com/api/reactions.add)
+          if [ "$response" -ne 200 ]; then
+            echo "Error adding reaction to Slack message"
+            cat response.json
+            exit 1
+          fi
